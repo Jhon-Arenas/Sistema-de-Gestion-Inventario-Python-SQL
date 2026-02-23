@@ -2,6 +2,14 @@ import customtkinter as ctk
 import pandas as pd
 from tkinter import messagebox
 from conexion_base import conectar_bd
+
+# ==========================================================
+# CONFIGURACIÓN DE APARIENCIA (AÑADIR ESTO AQUÍ) - NUEVO
+# ==========================================================
+ctk.set_appearance_mode("dark")  # Fuerza el modo oscuro
+ctk.set_default_color_theme("blue") # Define el color azul para los botones
+# ==========================================================
+
 print("Buscando conexión a la base de datos...")
 
 from Seccion_gestionusuarios import SeccionGestionUsuarios
