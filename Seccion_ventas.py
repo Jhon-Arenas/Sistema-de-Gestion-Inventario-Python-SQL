@@ -1,218 +1,213 @@
 import customtkinter as ctk
 from conexion_base import conectar_bd
 from tkinter import messagebox
+import pandas as pd
+
+PALETA = {
+    "fondo": "#051F20",
+    "sidebar": "#173831",
+    "botones": "#235347",
+    "hover": "#2E6A5C",
+    "texto": "#DBF0DD",
+    "peligro": "#5C1A1B",
+    "exito": "#2D5A27"
+}
 
 class SeccionVentas(ctk.CTkFrame):
-    def __init__(self, master):
+    def __init__(self, master, rol):
         super().__init__(master, fg_color="transparent")
+        self.rol = rol.lower()
         self.carrito = [] 
 
-        # 1. TÍTULO PRINCIPAL
-        self.titulo_label = ctk.CTkLabel(self, text="Sistema de Punto de Venta", font=("Roboto", 24, "bold"))
-        self.titulo_label.pack(pady=10)
+        # --- CABECERA ---
+        self.titulo_label = ctk.CTkLabel(self, text="💰 Punto de Venta", 
+                                        font=("Roboto", 28, "bold"), 
+                                        text_color=PALETA["texto"])
+        self.titulo_label.pack(pady=20)
 
-        # 2. CREACIÓN DE PESTAÑAS (Tabview)
-        self.tabview = ctk.CTkTabview(self)
+        self.tabview = ctk.CTkTabview(self, segmented_button_fg_color=PALETA["sidebar"],
+                                      segmented_button_selected_color=PALETA["botones"])
         self.tabview.pack(fill="both", expand=True, padx=20, pady=10)
 
-        self.tab_venta = self.tabview.add("Nueva Venta")
-        self.tab_historial = self.tabview.add("Historial de Ventas")
+        self.tab_venta = self.tabview.add("🛒 Nueva Venta")
+        self.tab_historial = self.tabview.add("📜 Historial")
 
-        # --- CONFIGURACIÓN PESTAÑA: NUEVA VENTA ---
-        # Contenedor para dividir Izquierda y Derecha dentro de la pestaña
-        self.cont_venta = ctk.CTkFrame(self.tab_venta, fg_color="transparent")
-        self.cont_venta.pack(fill="both", expand=True)
+        self.configurar_pestaña_venta()
+        self.configurar_pestaña_historial()
+        
+        # Cargar historial inicial
+        self.actualizar_historial_pro()
 
-        # Panel Izquierdo: Formulario
-        self.frame_datos = ctk.CTkFrame(self.cont_venta, width=300)
+    def configurar_pestaña_venta(self):
+        cont_venta = ctk.CTkFrame(self.tab_venta, fg_color="transparent")
+        cont_venta.pack(fill="both", expand=True)
+
+        # --- PANEL IZQUIERDO ---
+        self.frame_datos = ctk.CTkFrame(cont_venta, fg_color=PALETA["sidebar"], width=300)
         self.frame_datos.pack(side="left", fill="y", padx=10, pady=10)
 
-        ctk.CTkLabel(self.frame_datos, text="Datos del Producto", font=("Roboto", 16, "bold")).pack(pady=10)
-
-        self.entry_id_producto = ctk.CTkEntry(self.frame_datos, placeholder_text="ID del Producto", width=220)
-        self.entry_id_producto.pack(pady=10)
-
-        self.entry_cantidad = ctk.CTkEntry(self.frame_datos, placeholder_text="Cantidad", width=220)
-        self.entry_cantidad.pack(pady=10)
+        ctk.CTkLabel(self.frame_datos, text="Buscar Producto", font=("Roboto", 16, "bold")).pack(pady=(10, 0))
         
-        self.entry_cliente = ctk.CTkEntry(self.frame_datos, placeholder_text="Nombre del Cliente", width=220)
-        self.entry_cliente.pack(pady=10)
+        self.entry_buscar_nombre = ctk.CTkEntry(self.frame_datos, placeholder_text="Escribe nombre...", fg_color=PALETA["fondo"])
+        self.entry_buscar_nombre.pack(pady=5, padx=20, fill="x")
+        self.entry_buscar_nombre.bind("<KeyRelease>", lambda e: self.sugerir_productos())
 
-        ctk.CTkLabel(self.frame_datos, text="Método de Pago:").pack(pady=(10, 0))
-        self.combo_pago = ctk.CTkComboBox(self.frame_datos, values=["Efectivo", "Transferencia", "Pago Móvil", "Divisas"], state="readonly")
-        self.combo_pago.pack(pady=10)
+        self.label_sugerencia = ctk.CTkLabel(self.frame_datos, text="ID Sugerido: ---", font=("Roboto", 11), text_color="#AAA")
+        self.label_sugerencia.pack()
+
+        ctk.CTkLabel(self.frame_datos, text="Detalles de Venta", font=("Roboto", 16, "bold")).pack(pady=(20, 10))
+        
+        self.entry_id_producto = ctk.CTkEntry(self.frame_datos, placeholder_text="ID Confirmado", fg_color=PALETA["fondo"])
+        self.entry_id_producto.pack(pady=5, padx=20, fill="x")
+        
+        self.entry_cantidad = ctk.CTkEntry(self.frame_datos, placeholder_text="Cantidad", fg_color=PALETA["fondo"])
+        self.entry_cantidad.pack(pady=5, padx=20, fill="x")
+        self.entry_cantidad.insert(0, "1")
+
+        self.entry_cliente = ctk.CTkEntry(self.frame_datos, placeholder_text="Cliente", fg_color=PALETA["fondo"])
+        self.entry_cliente.pack(pady=5, padx=20, fill="x")
+
+        self.combo_pago = ctk.CTkComboBox(self.frame_datos, values=["Efectivo", "Transferencia", "Pago Móvil", "Divisas"], fg_color=PALETA["fondo"])
+        self.combo_pago.pack(pady=5, padx=20, fill="x")
         self.combo_pago.set("Efectivo")
 
-        self.btn_añadir = ctk.CTkButton(self.frame_datos, text="➕ Añadir al Carrito", command=self.añadir_al_carrito)
-        self.btn_añadir.pack(pady=20)
+        ctk.CTkButton(self.frame_datos, text="➕ Añadir al Carrito", fg_color=PALETA["botones"], 
+                      command=self.añadir_al_carrito).pack(pady=20, padx=20, fill="x")
 
-        # Panel Derecho: Carrito
-        self.frame_carrito = ctk.CTkFrame(self.cont_venta, fg_color="#1a1a1a")
+        # --- PANEL DERECHO ---
+        self.frame_carrito = ctk.CTkFrame(cont_venta, fg_color="#0A2A2B")
         self.frame_carrito.pack(side="right", fill="both", expand=True, padx=10, pady=10)
 
-        ctk.CTkLabel(self.frame_carrito, text="🛒 Carrito Actual", font=("Roboto", 18)).pack(pady=10)
-
+        ctk.CTkLabel(self.frame_carrito, text="📦 Detalle de Factura", font=("Roboto", 18, "bold")).pack(pady=10)
+        
         self.tabla_carrito = ctk.CTkScrollableFrame(self.frame_carrito, fg_color="transparent")
-        self.tabla_carrito.pack(fill="both", expand=True, padx=5, pady=5)
+        self.tabla_carrito.pack(fill="both", expand=True, padx=10, pady=5)
 
-        self.btn_vaciar = ctk.CTkButton(self.frame_carrito, text="🗑️ Vaciar Carrito", 
-                                        fg_color="#dc3545", hover_color="#c82333",
-                                        command=self.vaciar_carrito_accion)
-        self.btn_vaciar.pack(pady=5, padx=20, fill="x")
+        self.label_total = ctk.CTkLabel(self.frame_carrito, text="TOTAL: $0.00", font=("Roboto", 22, "bold"), text_color=PALETA["texto"])
+        self.label_total.pack(pady=5)
 
-        self.btn_finalizar = ctk.CTkButton(self.frame_carrito, text="✅ Finalizar Venta", 
-                                          fg_color="#28a745", hover_color="#218838",
+        self.btn_finalizar = ctk.CTkButton(self.frame_carrito, text="✅ Procesar Pago", 
+                                          fg_color=PALETA["exito"], font=("Roboto", 14, "bold"),
                                           command=self.finalizar_venta)
-        self.btn_finalizar.pack(pady=15, padx=20, fill="x")
+        self.btn_finalizar.pack(pady=10, padx=20, fill="x")
 
-        # --- CONFIGURACIÓN PESTAÑA: HISTORIAL ---
-        self.frame_historial = ctk.CTkFrame(self.tab_historial, fg_color="transparent")
-        self.frame_historial.pack(fill="both", expand=True)
+        self.btn_limpiar = ctk.CTkButton(self.frame_carrito, text="🗑️ Vaciar Todo", 
+                                        fg_color=PALETA["peligro"], command=self.limpiar_carrito_total)
+        self.btn_limpiar.pack(pady=(0, 15), padx=20, fill="x")
 
-        self.btn_refrescar = ctk.CTkButton(self.frame_historial, text="🔄 Actualizar Historial", 
-                                           command=self.actualizar_historial_pro)
-        self.btn_refrescar.pack(pady=10)
-
-        self.tabla_historial = ctk.CTkScrollableFrame(self.frame_historial, fg_color="#1a1a1a")
-        self.tabla_historial.pack(fill="both", expand=True, padx=10, pady=10)
-
-    # --- LÓGICA DE PROCESOS ---
-    def añadir_al_carrito(self):
-        id_p = self.entry_id_producto.get()
-        cant_solicitada = self.entry_cantidad.get()
-
-        # 1. Validación básica de campos vacíos
-        if not id_p or not cant_solicitada:
-            messagebox.showwarning("Faltan datos", "Por favor, ingresa ID y Cantidad.")
+    def sugerir_productos(self):
+        nombre = self.entry_buscar_nombre.get().strip()
+        if len(nombre) < 2: 
+            self.label_sugerencia.configure(text="ID Sugerido: ---")
             return
+        
+        try:
+            conn = conectar_bd()
+            cursor = conn.cursor()
+            cursor.execute("SELECT ID_Producto, Nombre FROM Productos WHERE Nombre LIKE ? LIMIT 1", (f'%{nombre}%',))
+            res = cursor.fetchone()
+            conn.close()
+            
+            if res:
+                self.label_sugerencia.configure(text=f"Sugerido: {res[1]} (ID: {res[0]})", text_color="#4ade80")
+                self.entry_id_producto.delete(0, 'end')
+                self.entry_id_producto.insert(0, str(res[0]))
+            else:
+                self.label_sugerencia.configure(text="No encontrado", text_color="#FF4444")
+        except: pass
+
+    def añadir_al_carrito(self):
+        id_p = self.entry_id_producto.get().strip()
+        cant = self.entry_cantidad.get().strip()
+        if not id_p or not cant: return
 
         try:
-            # Convertimos la cantidad a entero y verificamos que sea mayor a 0
-            cant_solicitada = int(cant_solicitada)
-            if cant_solicitada <= 0:
-                messagebox.showwarning("Cantidad Inválida", "La cantidad debe ser mayor a cero.")
-                return
-
-            conexion = conectar_bd()
-            cursor = conexion.cursor()
-            
-            # 2. Pedimos Nombre, Precio y STOCK a la base de datos
+            cant = int(cant)
+            conn = conectar_bd(); cursor = conn.cursor()
             cursor.execute("SELECT Nombre, Precio, Stock FROM Productos WHERE ID_Producto = ?", (id_p,))
-            producto = cursor.fetchone()
-            conexion.close()
+            res = cursor.fetchone()
+            conn.close()
 
-            if producto:
-                nombre, precio, stock_actual = producto
+            if res:
+                nom, pre, stock = res
+                if cant > stock:
+                    messagebox.showerror("Sin Stock", f"Solo hay {stock} disponibles.")
+                    return
                 
-                # 3. EL CANDADO: Validación de Stock
-                if cant_solicitada > stock_actual:
-                    messagebox.showerror("Stock Insuficiente", 
-                        f"¡No hay suficiente inventario!\n\nProducto: {nombre}\nStock disponible: {stock_actual}\nSolicitado: {cant_solicitada}")
-                    return # Detenemos la función aquí, no se añade al carrito
+                for item in self.carrito:
+                    if item['id'] == id_p:
+                        item['cantidad'] += cant
+                        item['subtotal'] = item['cantidad'] * item['precio']
+                        self.actualizar_vista_carrito()
+                        return
 
-                # 4. Si todo está bien, calculamos y añadimos
-                subtotal = precio * cant_solicitada
-                item = {
-                    "id": id_p, 
-                    "nombre": nombre, 
-                    "cantidad": cant_solicitada, 
-                    "precio": precio, 
-                    "subtotal": subtotal
-                }
-                
-                self.carrito.append(item)
+                self.carrito.append({"id": id_p, "nombre": nom, "cantidad": cant, "precio": pre, "subtotal": pre*cant})
                 self.actualizar_vista_carrito()
-                
-                # Limpiamos los campos para el siguiente producto
-                self.entry_id_producto.delete(0, 'end')
-                self.entry_cantidad.delete(0, 'end')
-                
             else:
-                messagebox.showerror("Error", "Producto no encontrado en la base de datos.")
-
-        except ValueError:
-            messagebox.showerror("Error", "La cantidad debe ser un número entero.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error inesperado: {e}")
+                messagebox.showerror("Error", "ID no encontrado.")
+        except: messagebox.showerror("Error", "Dato inválido.")
 
     def actualizar_vista_carrito(self):
-        for widget in self.tabla_carrito.winfo_children():
-            widget.destroy()
-
+        for widget in self.tabla_carrito.winfo_children(): widget.destroy()
         total = 0
-        for item in self.carrito:
-            fila = ctk.CTkFrame(self.tabla_carrito, fg_color="transparent")
-            fila.pack(fill="x", pady=2)
-            texto = f"{item['nombre']} x{item['cantidad']} - ${item['subtotal']:.2f}"
-            ctk.CTkLabel(fila, text=texto).pack(side="left", padx=10)
+        for i, item in enumerate(self.carrito):
+            f = ctk.CTkFrame(self.tabla_carrito, fg_color=PALETA["botones"])
+            f.pack(fill="x", pady=2, padx=5)
+            ctk.CTkLabel(f, text=f"{item['nombre']} x{item['cantidad']}").pack(side="left", padx=10)
+            ctk.CTkLabel(f, text=f"${item['subtotal']:.2f}").pack(side="left", padx=20)
+            ctk.CTkButton(f, text="❌", width=25, fg_color=PALETA["peligro"], command=lambda idx=i: self.quitar_item(idx)).pack(side="right", padx=5)
             total += item['subtotal']
+        self.label_total.configure(text=f"TOTAL: ${total:.2f}")
 
-        self.titulo_label.configure(text=f"Total Carrito: ${total:.2f}")
-
-    def vaciar_carrito_accion(self):
-        if self.carrito and messagebox.askyesno("Vaciar", "¿Borrar el carrito?"):
-            self.carrito = []
-            self.actualizar_vista_carrito()
-            self.titulo_label.configure(text="Sistema de Punto de Venta")
+    def quitar_item(self, index):
+        self.carrito.pop(index)
+        self.actualizar_vista_carrito()
 
     def finalizar_venta(self):
-        if not self.carrito:
-            messagebox.showwarning("Vacio", "El carrito está vacío.")
-            return
+        if not self.carrito: return
+        cliente = self.entry_cliente.get().strip() or "General"
+        metodo = self.combo_pago.get()
+        total = sum(item['subtotal'] for item in self.carrito)
+
+        if not messagebox.askyesno("Confirmar", f"¿Procesar venta por ${total:.2f}?"): return
 
         try:
-            total_compra = sum(item['subtotal'] for item in self.carrito)
-            cliente = self.entry_cliente.get() or "Consumidor Final"
-            metodo = self.combo_pago.get()
+            conn = conectar_bd(); cursor = conn.cursor()
+            # 1. Registrar venta
+            cursor.execute("INSERT INTO Ventas (Cliente, Total, Metodo_Pago) VALUES (?, ?, ?)", (cliente, total, metodo))
+            id_venta = cursor.lastrowid
 
-            conexion = conectar_bd()
-            cursor = conexion.cursor()
-            
-            # --- PASO 1: INSERTAR EN VENTAS (CABECERA) ---
-            # Verifica que el orden coincida con tu CREATE TABLE
-            cursor.execute("""INSERT INTO Ventas (id_usuario, Total_Venta, Nombre_Cliente, Metodo_Pago) 
-                              VALUES (?, ?, ?, ?)""", 
-                           (1, total_compra, cliente, metodo))
-            
-            id_v = cursor.lastrowid # Obtenemos el ID del ticket
-
-            # --- PASO 2: DETALLES ---
+            # 2. Detalles y Stock
             for item in self.carrito:
-                cursor.execute("""INSERT INTO Detalle_Ventas (id_venta, id_producto, Nombre_Producto, Cantidad, Precio_Unitario, Subtotal) 
-                                  VALUES (?, ?, ?, ?, ?, ?)""",
-                               (id_v, item['id'], item['nombre'], item['cantidad'], item['precio'], item['subtotal']))
-                
-                # Descontar stock (lo básico por ahora)
-                cursor.execute("UPDATE Productos SET Stock = Stock - ? WHERE ID_Producto = ?", 
-                               (item['cantidad'], item['id']))
+                cursor.execute("INSERT INTO Detalle_Ventas (ID_Venta, ID_Producto, Cantidad, Subtotal) VALUES (?, ?, ?, ?)",
+                               (id_venta, item['id'], item['cantidad'], item['subtotal']))
+                cursor.execute("UPDATE Productos SET Stock = Stock - ? WHERE ID_Producto = ?", (item['cantidad'], item['id']))
 
-            conexion.commit()
-            conexion.close()
-            
-            messagebox.showinfo("Éxito", f"Ticket #{id_v} guardado correctamente.")
-            
-            # Limpiar todo
-            self.carrito = []
-            self.actualizar_vista_carrito()
-            self.entry_cliente.delete(0, 'end')
-            self.actualizar_historial_pro() # ¡Para que aparezca en la otra pestaña!
-
+            conn.commit(); conn.close()
+            messagebox.showinfo("Éxito", "Venta completada.")
+            self.carrito = []; self.actualizar_vista_carrito()
+            self.actualizar_historial_pro()
         except Exception as e:
-            messagebox.showerror("Error", f"Error al finalizar: {e}")
+            messagebox.showerror("Error", f"Error en BD: {e}")
+
+    def configurar_pestaña_historial(self):
+        self.frame_historial = ctk.CTkFrame(self.tab_historial, fg_color="transparent")
+        self.frame_historial.pack(fill="both", expand=True)
+        ctk.CTkButton(self.frame_historial, text="🔄 Refrescar", command=self.actualizar_historial_pro).pack(pady=10)
+        self.scroll_historial = ctk.CTkScrollableFrame(self.frame_historial, fg_color=PALETA["sidebar"])
+        self.scroll_historial.pack(fill="both", expand=True, padx=20, pady=10)
 
     def actualizar_historial_pro(self):
-        for widget in self.tabla_historial.winfo_children():
-            widget.destroy()
-
+        for w in self.scroll_historial.winfo_children(): w.destroy()
         try:
-            conexion = conectar_bd()
-            cursor = conexion.cursor()
-            cursor.execute("SELECT ID_Venta, Fecha, Total_Venta, Nombre_Cliente FROM Ventas ORDER BY ID_Venta DESC")
-            for r in cursor.fetchall():
-                fila = ctk.CTkFrame(self.tabla_historial, fg_color="#2b2b2b")
-                fila.pack(fill="x", pady=5, padx=5)
-                info = f"Ticket #{r[0]} | {r[1][:16]} | Cli: {r[3]} | Total: ${r[2]:.2f}"
-                ctk.CTkLabel(fila, text=info).pack(side="left", padx=10)
-            conexion.close()
-        except Exception as e:
-            print(f"Error cargando historial: {e}")
+            conn = conectar_bd()
+            df = pd.read_sql_query("SELECT * FROM Ventas ORDER BY ID_Venta DESC LIMIT 30", conn)
+            conn.close()
+            for _, r in df.iterrows():
+                f = ctk.CTkFrame(self.scroll_historial, fg_color=PALETA["fondo"])
+                f.pack(fill="x", pady=2, padx=5)
+                ctk.CTkLabel(f, text=f"#{r['ID_Venta']} | {r['Cliente']} | ${r['Total']:.2f} | {r['Metodo_Pago']}").pack(side="left", padx=15)
+        except: pass
+
+    def limpiar_carrito_total(self):
+        self.carrito = []; self.actualizar_vista_carrito()
