@@ -116,6 +116,9 @@ class SeccionProductos(ctk.CTkFrame):
         except Exception as e: 
             print(f"Error en tabla: {e}")
 
+    def refrescar_datos(self):
+        self.actualizar_tabla() # Llamamos a la función de actualización para refrescar la tabla después de cambios
+
     # --- 2. PESTAÑA: REPONER STOCK ---
     def setup_pestana_reponer(self):
         tab = self.tabview.tab("Reponer Stock")

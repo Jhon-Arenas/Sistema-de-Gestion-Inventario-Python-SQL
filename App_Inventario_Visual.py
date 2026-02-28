@@ -1,4 +1,3 @@
-import sys
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 from conexion_base import conectar_bd
@@ -9,6 +8,7 @@ from Seccion_ventas import SeccionVentas
 from Seccion_reportes import SeccionReportes
 from Seccion_pedidos import SeccionPedidos
 from Seccion_gestionusuarios import SeccionGestionUsuarios
+from Seccion_Utilidades import resource_path
 
 # --- 1. PALETA DE COLORES GLOBAL (Tu elección: Bosque Profundo) ---
 PALETA = {
@@ -40,8 +40,10 @@ class AppInventario(ctk.CTk):
         self.mostrar_login()
 
         try:
-            self.iconbitmap("Logo.ico") 
+            # Usamos resource_path para que encuentre el icono dentro del ejecutable
+            self.iconbitmap(resource_path("Logo.ico")) 
         except:
+            print("No se pudo cargar el icono, verifica el nombre del archivo.")
             pass
 
     # --- MÉTODO DE LOGIN CORREGIDO CON HASHING ---
