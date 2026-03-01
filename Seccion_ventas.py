@@ -91,6 +91,13 @@ class SeccionVentas(ctk.CTkFrame):
                                           command=self.finalizar_venta)
         self.btn_finalizar.pack(pady=10, padx=20, fill="x")
 
+        # Solo para Encargados y Administradores
+        if self.rol in ["encargado", "administrador"]:
+            self.btn_descuento = ctk.CTkButton(self.frame_carrito, text="🏷️ Aplicar Descuento", 
+                                              fg_color=PALETA["hover"], font=("Roboto", 14, "bold"),
+                                              command=self.aplicar_descuento)
+            self.btn_descuento.pack(pady=10, padx=20, fill="x")
+
         self.btn_limpiar = ctk.CTkButton(self.frame_carrito, text="🗑️ Vaciar Todo", 
                                         fg_color=PALETA["peligro"], command=self.limpiar_carrito_total)
         self.btn_limpiar.pack(pady=(0, 15), padx=20, fill="x")
@@ -162,6 +169,34 @@ class SeccionVentas(ctk.CTkFrame):
     def quitar_item(self, index):
         self.carrito.pop(index)
         self.actualizar_vista_carrito()
+
+    # Añadimos un wallet de Descuentos
+    def aplicar_descuento(self):
+        if not self.carrito: 
+            messagebox.showwarning("Carrito vacío", "No hay productos para aplicar descuento.")
+            return
+            
+        dialog = ctk.CTkInputDialog(text="Ingresa el % de descuento (0-100):", title="Descuento")
+        input_val = dialog.get_input()
+        
+        if input_val is None: return # El usuario canceló
+
+        try:
+            desc_val = float(input_val)
+            if not (0 < desc_val <= 100):
+                messagebox.showerror("Error", "Ingrese un valor entre 0 y 100.")
+                return
+            
+            # Aplicamos el descuento sobre el subtotal original o recalculamos
+            # Nota: Considera si quieres aplicar esto a todo el carrito o ítem por ítem
+            for item in self.carrito:
+                # Aquí multiplicamos para reducir el valor
+                item['subtotal'] = item['subtotal'] * (1 - desc_val / 100)
+            
+            self.actualizar_vista_carrito()
+            messagebox.showinfo("Éxito", f"Descuento de {desc_val}% aplicado.")
+        except ValueError:
+            messagebox.showerror("Error", "El valor ingresado no es un número.")
 
     def finalizar_venta(self):
         if not self.carrito: return
