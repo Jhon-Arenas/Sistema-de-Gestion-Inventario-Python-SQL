@@ -145,10 +145,11 @@ class SeccionVentas(ctk.CTkFrame):
                     if item['id'] == id_p:
                         item['cantidad'] += cant
                         item['subtotal'] = item['cantidad'] * item['precio']
+                        item['precio_base'] = pre
                         self.actualizar_vista_carrito()
                         return
 
-                self.carrito.append({"id": id_p, "nombre": nom, "cantidad": cant, "precio": pre, "subtotal": pre*cant})
+                self.carrito.append({"id": id_p, "nombre": nom, "cantidad": cant, "precio": pre, "subtotal": pre*cant, "precio_base": pre})
                 self.actualizar_vista_carrito()
             else:
                 messagebox.showerror("Error", "ID no encontrado.")
@@ -170,34 +171,21 @@ class SeccionVentas(ctk.CTkFrame):
         self.carrito.pop(index)
         self.actualizar_vista_carrito()
 
-    # Añadimos un wallet de Descuentos
+    # Añadimos un wallet de Descuentos que funcione en base al subtotal original (precio_base) para evitar descuentos acumulativos
     def aplicar_descuento(self):
-        if not self.carrito: 
-            messagebox.showwarning("Carrito vacío", "No hay productos para aplicar descuento.")
-            return
-            
-        dialog = ctk.CTkInputDialog(text="Ingresa el % de descuento (0-100):", title="Descuento")
-        input_val = dialog.get_input()
-        
-        if input_val is None: return # El usuario canceló
-
+        if not self.carrito: return
+        descuento = ctk.CTkInputDialog(text="Ingrese % de descuento (ej: 10 para 10%)", title="Aplicar Descuento").get_input()
         try:
-            desc_val = float(input_val)
-            if not (0 < desc_val <= 100):
-                messagebox.showerror("Error", "Ingrese un valor entre 0 y 100.")
+            descuento = float(descuento)
+            if not (0 < descuento < 100):
+                messagebox.showerror("Error", "Ingrese un porcentaje válido.")
                 return
             
-            # Aplicamos el descuento sobre el subtotal original o recalculamos
-            # Nota: Considera si quieres aplicar esto a todo el carrito o ítem por ítem
             for item in self.carrito:
-                # Aquí multiplicamos para reducir el valor
-                item['subtotal'] = item['subtotal'] * (1 - desc_val / 100)
-            
+                item['subtotal'] = item['precio_base'] * item['cantidad'] * (1 - descuento / 100)
             self.actualizar_vista_carrito()
-            messagebox.showinfo("Éxito", f"Descuento de {desc_val}% aplicado.")
-        except ValueError:
-            messagebox.showerror("Error", "El valor ingresado no es un número.")
-
+        except: messagebox.showerror("Error", "Entrada inválida.")
+        
     def finalizar_venta(self):
         if not self.carrito: return
         cliente = self.entry_cliente.get().strip() or "General"
