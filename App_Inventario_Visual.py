@@ -108,21 +108,23 @@ class AppInventario(ctk.CTk):
         # --- BOTONES DE NAVEGACIÓN ---
         self.crear_boton(sidebar, "📦 Productos", lambda: self.cambiar_seccion("productos")).pack(pady=10, padx=20, fill="x")
         
-        if self.rol_usuario.lower() in ["administrador", "vendedor"]:
+        if self.rol_usuario.lower() in ["administrador", "encargado", "vendedor"]:
             self.crear_boton(sidebar, "💰 Ventas", lambda: self.cambiar_seccion("ventas")).pack(pady=10, padx=20, fill="x")
 
         # --- BOTÓN DE PEDIDOS CON NOTIFICACIÓN (BADGE) ---
-        # Creamos un frame pequeño para que el botón y el número rojo vivan juntos
-        self.frame_pedidos = ctk.CTkFrame(sidebar, fg_color="transparent")
-        self.frame_pedidos.pack(pady=10, padx=20, fill="x")
+        #Botón de pedidos (este es el botón que se va a actualizar con el número rojo) y solo lo ven admin y encargado
+        if self.rol_usuario.lower() in ["administrador", "encargado"]:
+            # Creamos un frame pequeño para que el botón y el número rojo vivan juntos
+            self.frame_pedidos = ctk.CTkFrame(sidebar, fg_color="transparent")
+            self.frame_pedidos.pack(pady=10, padx=20, fill="x")
 
-        self.btn_pedidos = self.crear_boton(self.frame_pedidos, "📝 Pedidos", lambda: self.cambiar_seccion("pedidos"))
-        self.btn_pedidos.pack(side="left", fill="x", expand=True)
+            self.btn_pedidos = self.crear_boton(self.frame_pedidos, "📝 Pedidos", lambda: self.cambiar_seccion("pedidos"))
+            self.btn_pedidos.pack(side="left", fill="x", expand=True)
 
-        # Aquí creamos el circulito rojo (Label), pero lo guardamos en self para moverlo
-        self.lbl_badge = ctk.CTkLabel(self.frame_pedidos, text="0", width=24, height=24, 
-                                      fg_color=PALETA["peligro"], text_color="white", 
-                                      corner_radius=12, font=("Roboto", 11, "bold"))
+            # Aquí creamos el circulito rojo (Label), pero lo guardamos en self para moverlo
+            self.lbl_badge = ctk.CTkLabel(self.frame_pedidos, text="0", width=24, height=24, 
+                                        fg_color=PALETA["peligro"], text_color="white", 
+                                        corner_radius=12, font=("Roboto", 11, "bold"))
         # No lo empaquetamos (pack) todavía, lo hará la función actualizar_badge_pedidos
 
         if self.rol_usuario.lower() in ["administrador", "encargado"]:
@@ -192,6 +194,7 @@ def inicializar_bd():
             CREATE TABLE IF NOT EXISTS Productos (
                 ID_Producto INTEGER PRIMARY KEY AUTOINCREMENT,
                 Nombre TEXT NOT NULL,
+                Precio_Costo REAL NOT NULL,
                 Stock INTEGER DEFAULT 0,
                 Precio REAL
             )
@@ -215,6 +218,7 @@ def inicializar_bd():
                 ID_Detalle INTEGER PRIMARY KEY AUTOINCREMENT,
                 ID_Venta INTEGER,
                 ID_Producto INTEGER,
+                Precio_Unitario REAL,
                 Cantidad INTEGER,
                 Subtotal REAL,
                 FOREIGN KEY(ID_Venta) REFERENCES Ventas(ID_Venta),
@@ -222,7 +226,7 @@ def inicializar_bd():
             )
         """)
 
-        # 4. Tabla de Usuarios
+        # 4. Tabla de Usuariosv 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS Usuarios (
                 Nombre_Usuario TEXT PRIMARY KEY,

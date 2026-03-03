@@ -6,157 +6,97 @@ from datetime import datetime
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-PALETA = {
-    "fondo": "#051F20",
-    "sidebar": "#173831",
-    "botones": "#235347",
-    "hover": "#2E6A5C",
-    "texto": "#DBF0DD",
-    "exito": "#2D5A27",
-    "resalte": "#E67E22" 
-}
-
 class SeccionReportes(ctk.CTkFrame):
     def __init__(self, master, rol):
         super().__init__(master, fg_color="transparent")
         self.rol = rol.lower()
         
-        # 1. TÍTULO
-        ctk.CTkLabel(self, text="📊 Inteligencia de Negocio", 
-                     font=("Roboto", 28, "bold"), text_color=PALETA["texto"]).pack(pady=15)
+        ctk.CTkLabel(self, text="📊 Inteligencia Financiera", font=("Roboto", 28, "bold"), text_color="#DBF0DD").pack(pady=10)
 
-        # 2. KPIs (Tus tarjetas originales: Ingresos, Ventas y PRODUCTO ESTRELLA)
-        self.frame_cards = ctk.CTkFrame(self, fg_color="transparent")
-        self.frame_cards.pack(fill="x", padx=40, pady=5)
+        self.frame_tools = ctk.CTkFrame(self, fg_color="#173831", corner_radius=10)
+        self.frame_tools.pack(pady=5, padx=40, fill="x")
 
-        self.card_total = self.crear_tarjeta("Ingresos Totales", "$ 0.00", "#4ADE80")
-        self.card_cantidad = self.crear_tarjeta("Ventas Realizadas", "0", PALETA["texto"])
-        self.card_top = self.crear_tarjeta("⭐ Producto Estrella", "---", PALETA["resalte"])
+        fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+        
+        ctk.CTkLabel(self.frame_tools, text="📅 Desde:").pack(side="left", padx=5)
+        self.ent_inicio = ctk.CTkEntry(self.frame_tools, width=100); self.ent_inicio.insert(0, fecha_hoy); self.ent_inicio.pack(side="left", padx=5, pady=10)
 
-        # 3. ZONA DE GRÁFICA (Nueva sección para visualizar tendencias)
-        self.frame_grafica = ctk.CTkFrame(self, fg_color=PALETA["sidebar"], corner_radius=15, height=200)
-        self.frame_grafica.pack(fill="x", padx=40, pady=10)
+        ctk.CTkLabel(self.frame_tools, text="Hasta:").pack(side="left", padx=5)
+        self.ent_fin = ctk.CTkEntry(self.frame_tools, width=100); self.ent_fin.insert(0, fecha_hoy); self.ent_fin.pack(side="left", padx=5)
 
-        # 4. BARRA DE HERRAMIENTAS (Filtros originales)
-        self.frame_tools = ctk.CTkFrame(self, fg_color=PALETA["sidebar"], corner_radius=10)
-        self.frame_tools.pack(pady=10, padx=40, fill="x")
+        ctk.CTkButton(self.frame_tools, text="🔄 Filtrar", fg_color="#235347", command=self.generar_reporte).pack(side="left", padx=15)
+        ctk.CTkButton(self.frame_tools, text="📉 Excel", width=80, fg_color="#1D6F42", command=self.exportar_a_excel).pack(side="left", padx=5)
 
-        self.entry_cliente = ctk.CTkEntry(self.frame_tools, placeholder_text="👤 Buscar Cliente...", width=200)
-        self.entry_cliente.pack(side="left", padx=10, pady=10)
+        self.frame_cards = ctk.CTkFrame(self, fg_color="transparent"); self.frame_cards.pack(fill="x", padx=40, pady=10)
+        self.card_ventas = self.crear_tarjeta("Ventas Brutas", "$ 0.00", "#4ADE80")
+        self.card_costos = self.crear_tarjeta("Inversión", "$ 0.00", "#E74C3C")
+        self.card_ganancia = self.crear_tarjeta("Ganancia Real", "$ 0.00", "#E67E22")
 
-        # Botón Actualizar
-        self.btn_generar = ctk.CTkButton(self.frame_tools, text="🔄 Actualizar Todo", 
-                                         fg_color=PALETA["botones"], width=140,
-                                         command=self.generar_reporte)
-        self.btn_generar.pack(side="left", padx=5)
-
-        # Botón Excel (¡Aquí está de vuelta!)
-        self.btn_excel = ctk.CTkButton(self.frame_tools, text="📉 Exportar Excel", 
-                                       fg_color="#1D6F42", hover_color="#145231", width=140,
-                                       command=self.exportar_a_excel)
-        self.btn_excel.pack(side="left", padx=5)
-
-        # 5. HISTORIAL DETALLADO (Tu lista original)
-        ctk.CTkLabel(self, text="📜 Historial Reciente", font=("Roboto", 14, "bold")).pack()
-        self.scroll_reporte = ctk.CTkScrollableFrame(self, fg_color="#0A2A2B", corner_radius=15, height=200)
-        self.scroll_reporte.pack(pady=10, padx=40, fill="both", expand=True)
+        self.frame_grafica = ctk.CTkFrame(self, fg_color="#173831", corner_radius=15, height=200); self.frame_grafica.pack(fill="x", padx=40, pady=5)
+        self.scroll_reporte = ctk.CTkScrollableFrame(self, fg_color="#0A2A2B", height=200); self.scroll_reporte.pack(pady=10, padx=40, fill="both", expand=True)
 
         self.generar_reporte()
 
-    def crear_tarjeta(self, titulo, valor_init, color_valor):
-        card = ctk.CTkFrame(self.frame_cards, fg_color=PALETA["sidebar"], corner_radius=15)
-        card.pack(side="left", padx=10, expand=True, fill="both")
-        ctk.CTkLabel(card, text=titulo, font=("Roboto", 11)).pack(pady=(5,0))
-        lbl = ctk.CTkLabel(card, text=valor_init, font=("Roboto", 18, "bold"), text_color=color_valor)
-        lbl.pack(pady=10)
+    def crear_tarjeta(self, t, v, c):
+        card = ctk.CTkFrame(self.frame_cards, fg_color="#173831", corner_radius=15); card.pack(side="left", padx=10, expand=True, fill="both")
+        ctk.CTkLabel(card, text=t, font=("Roboto", 11)).pack(pady=(5,0))
+        lbl = ctk.CTkLabel(card, text=v, font=("Roboto", 20, "bold"), text_color=c); lbl.pack(pady=10)
         return lbl
 
-    def dibujar_grafica(self, df):
-        for widget in self.frame_grafica.winfo_children(): widget.destroy()
-        if df.empty: return
-        
-        # Agrupamos por fecha para ver la tendencia de dinero
-        df['Fecha'] = pd.to_datetime(df['Fecha']).dt.date
-        resumen = df.groupby('Fecha')['Total'].sum().reset_index()
-
-        fig = Figure(figsize=(8, 2), dpi=80, facecolor=PALETA["sidebar"])
-        ax = fig.add_subplot(111)
-        ax.set_facecolor(PALETA["sidebar"])
-        ax.plot(resumen['Fecha'].astype(str), resumen['Total'], color="#4ADE80", marker='o', linewidth=2)
-        
-        ax.tick_params(colors="white", labelsize=7)
-        for spine in ax.spines.values(): spine.set_visible(False)
-        
-        canvas = FigureCanvasTkAgg(fig, master=self.frame_grafica)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=5)
-
     def generar_reporte(self):
-        # Limpiar lista
-        for widget in self.scroll_reporte.winfo_children(): widget.destroy()
-        cliente = self.entry_cliente.get().strip()
-
+        for w in self.scroll_reporte.winfo_children(): w.destroy()
+        ini, fin = self.ent_inicio.get().strip(), self.ent_fin.get().strip()
+        
         try:
             conn = conectar_bd()
+            query_v = """SELECT V.ID_Venta, V.Fecha, V.Total, GROUP_CONCAT(P.Nombre, ', ') as Productos
+                         FROM Ventas V
+                         JOIN Detalle_Ventas DV ON V.ID_Venta = DV.ID_Venta
+                         JOIN Productos P ON DV.ID_Producto = P.ID_Producto
+                         WHERE V.Fecha BETWEEN ? AND ? GROUP BY V.ID_Venta"""
+            df_v = pd.read_sql_query(query_v, conn, params=(ini, fin))
             
-            # --- LÓGICA DE PRODUCTO ESTRELLA (Tu código original intacto) ---
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT p.Nombre, SUM(d.Cantidad) as total 
-                FROM Detalle_Ventas d
-                JOIN Productos p ON d.ID_Producto = p.ID_Producto
-                GROUP BY d.ID_Producto ORDER BY total DESC LIMIT 1
-            """)
-            top = cursor.fetchone()
-            if top: self.card_top.configure(text=f"{top[0]} ({top[1]})")
+            query_f = """SELECT d.Cantidad, p.Precio_Costo FROM Detalle_Ventas d 
+                         JOIN Ventas v ON d.ID_Venta = v.ID_Venta 
+                         JOIN Productos p ON d.ID_Producto = p.ID_Producto WHERE v.Fecha BETWEEN ? AND ?"""
+            df_f = pd.read_sql_query(query_f, conn, params=(ini, fin)); conn.close()
 
-            # --- LÓGICA DE DATOS CON PANDAS ---
-            query = "SELECT * FROM Ventas WHERE 1=1"
-            params = []
-            if cliente:
-                query += " AND Cliente LIKE ?"
-                params.append(f'%{cliente}%')
+            if df_v.empty: return
+
+            total_v = df_v['Total'].sum()
+            total_c = (df_f['Cantidad'] * df_f['Precio_Costo']).sum()
             
-            df = pd.read_sql_query(query, conn, params=params)
-            
-            # Actualizar tarjetas de dinero y cantidad
-            self.card_total.configure(text=f"$ {df['Total'].sum():,.2f}")
-            self.card_cantidad.configure(text=str(len(df)))
+            self.card_ventas.configure(text=f"$ {total_v:,.2f}")
+            self.card_costos.configure(text=f"$ {total_c:,.2f}")
+            self.card_ganancia.configure(text=f"$ {(total_v - total_c):,.2f}")
 
-            # Dibujar la gráfica sin borrar nada más
-            self.dibujar_grafica(df)
-
-            # Llenar el historial detallado
-            for _, v in df.iterrows():
-                f = ctk.CTkFrame(self.scroll_reporte, fg_color=PALETA["sidebar"])
+            for _, v in df_v.iterrows():
+                f = ctk.CTkFrame(self.scroll_reporte, fg_color="#173831")
                 f.pack(fill="x", pady=2, padx=5)
-                ctk.CTkLabel(f, text=f"ID: {v['ID_Venta']} | 👤 {v['Cliente']} | 💰 ${v['Total']:.2f}").pack(side="left", padx=10)
+                ctk.CTkLabel(f, text=f"ID: {v['ID_Venta']} | {v['Productos']} | ${v['Total']:.2f}").pack(side="left", padx=10)
+            
+            self.dibujar_grafica(df_v)
+        except: pass
 
-            conn.close()
-        except Exception as e:
-            print(f"Error, Fallo al cargar el reporte: {e}")
+    def dibujar_grafica(self, df):
+        for w in self.frame_grafica.winfo_children(): w.destroy()
+        if df.empty: return
+        fig = Figure(figsize=(5, 2), facecolor="#173831")
+        ax = fig.add_subplot(111); ax.set_facecolor("#173831")
+        resumen = df.groupby('Fecha')['Total'].sum()
+        ax.plot(resumen.index, resumen.values, color="#4ADE80", marker='o')
+        ax.tick_params(colors="white", labelsize=7)
+        canvas = FigureCanvasTkAgg(fig, master=self.frame_grafica); canvas.draw(); canvas.get_tk_widget().pack(fill="both", expand=True)
 
     def exportar_a_excel(self):
+        fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+        nombre_sugerido = f"Reporte_Ventas_{fecha_hoy}.xlsx"
         try:
             conn = conectar_bd()
-            # Usamos pandas para leer la tabla completa o filtrada
-            df = pd.read_sql_query("SELECT * FROM Ventas", conn)
+            df = pd.read_sql_query("SELECT * FROM Ventas WHERE Fecha BETWEEN ? AND ?", conn, params=(self.ent_inicio.get(), self.ent_fin.get()))
             conn.close()
-
-            # Aplicar mismos filtros que en la UI si el usuario escribió algo
-            cliente = self.entry_cliente.get()
-            if cliente:
-                df = df[df['Cliente'].str.contains(cliente, case=False, na=False)]
-
-            if df.empty:
-                messagebox.showwarning("Aviso", "No hay datos para exportar.")
-                return
-
-            ruta = filedialog.asksaveasfilename(defaultextension=".xlsx",
-                                               filetypes=[("Excel", "*.xlsx")],
-                                               initialfile=f"Reporte_{datetime.now().strftime('%d_%m_%Y')}.xlsx")
+            ruta = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nombre_sugerido, filetypes=[("Excel", "*.xlsx")])
             if ruta:
                 df.to_excel(ruta, index=False)
-                messagebox.showinfo("Éxito", "Excel guardado.")
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo exportar: {e}")
+                messagebox.showinfo("Éxito", "Excel generado")
+        except Exception as e: messagebox.showerror("Error", f"{e}")
