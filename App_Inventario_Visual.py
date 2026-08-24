@@ -11,14 +11,17 @@ from Seccion_gestionusuarios import SeccionGestionUsuarios
 from Seccion_Utilidades import resource_path
 
 # --- 1. PALETA DE COLORES GLOBAL (Tu elección: Bosque Profundo) ---
+# Paleta optimizada para Gestión de Inventario (basada en imagen 3.png)
 PALETA = {
-    "fondo": "#051F20",      
-    "sidebar": "#173831",    
-    "botones": "#235347",    
-    "hover": "#2E6A5C",      
-    "texto": "#DBF0DD",      
-    "peligro": "#5C1A1B",    
-    "exito": "#2D5A27"       
+    "fondo": "#0D1B2A",      # El azul más oscuro (Base de la app)
+    "sidebar": "#1B263B",    # Azul medianoche (Menú lateral)
+    "botones": "#415A77",    # Azul acero (Acciones principales)
+    "hover": "#778DA9",      # Gris azulado claro (Efecto al pasar el mouse)
+    "texto": "#E0E1DD",      # Blanco hueso (Lectura perfecta sobre azul)
+    "peligro": "#9A031E",    # Rojo vino (Para errores o stock en cero)
+    "exito": "#2D5A27",       # Verde bosque (Para ingresos de mercancía)
+    "resalte": "#CCAD1F",  # <--- AGREGA ESTA LÍNEA (No olvides la coma arriba)
+    "alerta": "#E67E22"
 }
 
 # Configuración inicial de CustomTkinter

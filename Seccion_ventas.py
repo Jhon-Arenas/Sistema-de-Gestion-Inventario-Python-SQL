@@ -4,14 +4,17 @@ from tkinter import messagebox, simpledialog
 import pandas as pd
 from datetime import datetime # <--- IMPORTANTE
 
+# Paleta optimizada para Gestión de Inventario (basada en imagen 3.png)
 PALETA = {
-    "fondo": "#051F20",
-    "sidebar": "#173831",
-    "botones": "#235347",
-    "hover": "#2E6A5C",
-    "texto": "#DBF0DD",
-    "peligro": "#5C1A1B",
-    "exito": "#2D5A27"
+    "fondo": "#0D1B2A",      # Azul oscuro
+    "sidebar": "#1B263B",    # Azul medianoche
+    "botones": "#415A77",    # Azul acero
+    "hover": "#778DA9",      # Gris azulado
+    "texto": "#E0E1DD",      # Blanco hueso
+    "peligro": "#9A031E",    # Rojo vino
+    "exito": "#2D5A27",      # Verde bosque
+    "resalte": "#CCAD1F",    # Amarillo/Dorado (Para los pedidos)
+    "alerta": "#E67E22"      # Naranja (Para el stock crítico)
 }
 
 class SeccionVentas(ctk.CTkFrame):

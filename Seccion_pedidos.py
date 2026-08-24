@@ -2,15 +2,17 @@ import customtkinter as ctk
 from conexion_base import conectar_bd
 from tkinter import messagebox
 
+# Paleta optimizada para Gestión de Inventario
 PALETA = {
-    "fondo": "#051F20",
-    "sidebar": "#173831",
-    "botones": "#235347",
-    "hover": "#2E6A5C",
-    "texto": "#DBF0DD",
-    "alerta": "#FF4444",
-    "exito": "#27ae60",
-    "resalte": "#E67E22"
+    "fondo": "#0D1B2A",      # El azul más oscuro (Base de la app)
+    "sidebar": "#1B263B",    # Azul medianoche (Menú lateral)
+    "botones": "#415A77",    # Azul acero (Acciones principales)
+    "hover": "#778DA9",      # Gris azulado claro (Efecto al pasar el mouse)
+    "texto": "#E0E1DD",      # Blanco hueso (Lectura perfecta sobre azul)
+    "peligro": "#9A031E",    # Rojo vino (Para errores o stock en cero)
+    "exito": "#2D5A27",       # Verde bosque (Para ingresos de mercancía)
+    "resalte": "#CCAD1F",    # Color resalte
+    "alerta": "#E67E22"
 }
 
 class SeccionPedidos(ctk.CTkFrame):
@@ -55,25 +57,41 @@ class SeccionPedidos(ctk.CTkFrame):
                                           font=("Roboto", 12, "italic"), text_color=PALETA["resalte"])
         self.lbl_info_prod.pack(pady=(0, 10))
 
-        # 3. TABLA (CABECERA)
-        self.frame_header = ctk.CTkFrame(self, fg_color=PALETA["botones"], corner_radius=5)
-        self.frame_header.pack(fill="x", padx=40, pady=(20, 0))
+        # 3. TABVIEW (SEPARACIÓN EN PESTAÑAS)
+        self.pestanas = ctk.CTkTabview(self, fg_color=PALETA["sidebar"], 
+                                      segmented_button_selected_color=PALETA["resalte"],
+                                      segmented_button_unselected_color=PALETA["botones"])
+        self.pestanas.pack(pady=(10, 20), padx=40, fill="both", expand=True)
 
-        # --- CAMBIO AQUÍ: Añadimos "Stock Act." a la lista de columnas ---
+        self.tab_clientes = self.pestanas.add("Clientes 👤")
+        self.tab_proveedores = self.pestanas.add("Proveedores 🚚")
+
+        # Configuración de la pestaña de Clientes
+        self.frame_header_cli = self.crear_cabecera_tabla(self.tab_clientes)
+        self.frame_header_cli.pack(fill="x", padx=10, pady=(10, 0))
+        self.tabla_clientes = ctk.CTkScrollableFrame(self.tab_clientes, fg_color="#0A2A2B", corner_radius=10)
+        self.tabla_clientes.pack(pady=(0, 10), padx=10, fill="both", expand=True)
+
+        # Configuración de la pestaña de Proveedores
+        self.frame_header_prov = self.crear_cabecera_tabla(self.tab_proveedores)
+        self.frame_header_prov.pack(fill="x", padx=10, pady=(10, 0))
+        self.tabla_proveedores = ctk.CTkScrollableFrame(self.tab_proveedores, fg_color="#0A2A2B", corner_radius=10)
+        self.tabla_proveedores.pack(pady=(0, 10), padx=10, fill="both", expand=True)
+
+        self.actualizar_lista_pedidos()
+
+    def crear_cabecera_tabla(self, master):
+        frame_header = ctk.CTkFrame(master, fg_color=PALETA["botones"], corner_radius=5)
         columnas = [
             ("ID", 40), ("Tipo", 80), ("Entidad", 130), 
             ("Producto", 130), ("Cant.", 50), ("Stock Act.", 80), 
             ("Estado", 90), ("Acción", 110)
         ]
-        
         for texto, ancho in columnas:
-            lbl = ctk.CTkLabel(self.frame_header, text=texto, width=ancho, font=("Roboto", 11, "bold"), text_color=PALETA["texto"])
+            lbl = ctk.CTkLabel(frame_header, text=texto, width=ancho, 
+                               font=("Roboto", 11, "bold"), text_color=PALETA["texto"])
             lbl.pack(side="left", padx=5)
-
-        self.tabla_pedidos = ctk.CTkScrollableFrame(self, fg_color="#0A2A2B", corner_radius=15)
-        self.tabla_pedidos.pack(pady=(0, 20), padx=40, fill="both", expand=True)
-
-        self.actualizar_lista_pedidos()
+        return frame_header
 
     def buscar_nombre_producto(self, event):
         id_buscado = self.entry_id_prod.get()
@@ -85,7 +103,6 @@ class SeccionPedidos(ctk.CTkFrame):
                 resultado = cursor.fetchone()
                 conn.close()
                 if resultado:
-                    # --- CAMBIO AQUÍ: También mostramos el stock en la etiqueta de confirmación ---
                     self.lbl_info_prod.configure(text=f"✅ {resultado[0]} (Stock actual: {resultado[1]})", text_color="#27ae60")
                 else:
                     self.lbl_info_prod.configure(text="❌ ID no existe", text_color="#FF4444")
@@ -93,26 +110,34 @@ class SeccionPedidos(ctk.CTkFrame):
         else:
             self.lbl_info_prod.configure(text="Introduce solo números", text_color=PALETA["alerta"])
 
-    def actualizar_lista_pedidos(self):
-        for widget in self.tabla_pedidos.winfo_children():
+    def cargar_pedidos_por_tipo(self, tipo_pedido, contenedor_tabla):
+        for widget in contenedor_tabla.winfo_children():
             widget.destroy()
 
         try:
             conexion = conectar_bd()
             cursor = conexion.cursor()
             
-            # --- CAMBIO AQUÍ: El INNER JOIN ahora también trae 'prod.Stock' ---
             query = """
-                SELECT p.ID_Pedido, p.Tipo, p.Nombre_Entidad, prod.Nombre, p.Cantidad, p.Estado, prod.Stock 
+                SELECT p.ID_Pedido, p.Tipo, p.Nombre_Entidad, 
+                       ifnull(prod.Nombre, 'ID Inválido'), 
+                       p.Cantidad, p.Estado, 
+                       ifnull(prod.Stock, 0) 
                 FROM Pedidos p
-                INNER JOIN Productos prod ON p.Producto = prod.ID_Producto
-                WHERE p.Estado = 'Pendiente'
+                LEFT JOIN Productos prod ON p.Producto = prod.ID_Producto
+                WHERE p.Estado = 'Pendiente' AND p.Tipo = ?
             """
-            cursor.execute(query)
+            cursor.execute(query, (tipo_pedido,))
             filas = cursor.fetchall()
 
+            if not filas:
+                ctk.CTkLabel(contenedor_tabla, text=f"No hay pedidos pendientes de {tipo_pedido.lower()}s, Rick.", 
+                             text_color=PALETA["hover"]).pack(pady=20)
+                conexion.close()
+                return
+
             for fila in filas:
-                f_row = ctk.CTkFrame(self.tabla_pedidos, fg_color=PALETA["sidebar"], height=45)
+                f_row = ctk.CTkFrame(contenedor_tabla, fg_color=PALETA["sidebar"], height=45)
                 f_row.pack(fill="x", pady=2, padx=5)
 
                 ctk.CTkLabel(f_row, text=fila[0], width=40).pack(side="left", padx=5)
@@ -121,10 +146,11 @@ class SeccionPedidos(ctk.CTkFrame):
                 ctk.CTkLabel(f_row, text=fila[3], width=130, anchor="w").pack(side="left", padx=5)
                 ctk.CTkLabel(f_row, text=fila[4], width=50).pack(side="left", padx=5)
                 
-                # --- CAMBIO AQUÍ: Nueva celda que muestra el Stock que hay actualmente en la tabla Productos ---
                 stock_actual = fila[6]
-                color_stock = PALETA["texto"] if stock_actual >= fila[4] else "#FF4444"
-                ctk.CTkLabel(f_row, text=stock_actual, width=80, text_color=color_stock, font=("Roboto", 11, "bold")).pack(side="left", padx=5)
+                color_stock = PALETA["texto"] if stock_actual >= fila[4] else PALETA["peligro"]
+                
+                ctk.CTkLabel(f_row, text=stock_actual, width=80, 
+                             text_color=color_stock, font=("Roboto", 11, "bold")).pack(side="left", padx=5)
 
                 ctk.CTkLabel(f_row, text=fila[5], width=90, text_color="#E67E22").pack(side="left", padx=5)
 
@@ -136,10 +162,13 @@ class SeccionPedidos(ctk.CTkFrame):
 
             conexion.close()
         except Exception as e:
-            print(f"Error en tabla: {e}")
+            print(f"Error en tabla {tipo_pedido}: {e}")
+
+    def actualizar_lista_pedidos(self):
+        self.cargar_pedidos_por_tipo("Cliente", self.tabla_clientes)
+        self.cargar_pedidos_por_tipo("Proveedor", self.tabla_proveedores)
 
     def registrar_pedido(self):
-        # ... (Este método se mantiene igual que el anterior, usando el ID_Producto)
         tipo = self.tipo_var.get()
         entidad = self.entry_entidad.get()
         id_p = self.entry_id_prod.get()
@@ -167,7 +196,6 @@ class SeccionPedidos(ctk.CTkFrame):
             messagebox.showerror("Error", f"No se pudo guardar: {e}")
 
     def completar_pedido_directo(self, id_ped):
-        # ... (Este método se mantiene igual, ya funciona con ID)
         try:
             conexion = conectar_bd()
             cursor = conexion.cursor()
@@ -202,4 +230,3 @@ class SeccionPedidos(ctk.CTkFrame):
             if hasattr(objetivo, 'actualizar_badge_pedidos'):
                 objetivo.actualizar_badge_pedidos()
         except: pass
-        

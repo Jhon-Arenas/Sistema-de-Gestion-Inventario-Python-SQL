@@ -91,12 +91,54 @@ class SeccionReportes(ctk.CTkFrame):
     def exportar_a_excel(self):
         fecha_hoy = datetime.now().strftime('%Y-%m-%d')
         nombre_sugerido = f"Reporte_Ventas_{fecha_hoy}.xlsx"
+        
         try:
             conn = conectar_bd()
-            df = pd.read_sql_query("SELECT * FROM Ventas WHERE Fecha BETWEEN ? AND ?", conn, params=(self.ent_inicio.get(), self.ent_fin.get()))
+            # Traemos los datos
+            df = pd.read_sql_query("SELECT * FROM Ventas WHERE Fecha BETWEEN ? AND ?", 
+                                   conn, params=(self.ent_inicio.get(), self.ent_fin.get()))
             conn.close()
-            ruta = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=nombre_sugerido, filetypes=[("Excel", "*.xlsx")])
+
+            if df.empty:
+                messagebox.showwarning("Atención", "No hay datos en el rango seleccionado")
+                return
+
+            ruta = filedialog.asksaveasfilename(defaultextension=".xlsx", 
+                                               initialfile=nombre_sugerido, 
+                                               filetypes=[("Excel", "*.xlsx")])
+            
             if ruta:
-                df.to_excel(ruta, index=False)
-                messagebox.showinfo("Éxito", "Excel generado")
-        except Exception as e: messagebox.showerror("Error", f"{e}")
+                # --- AQUÍ EMPIEZA LA MAGIA ---
+                # Usamos xlsxwriter como motor para poder dar formato
+                with pd.ExcelWriter(ruta, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Ventas_Nexus')
+                    
+                    workbook  = writer.book
+                    worksheet = writer.sheets['Ventas_Nexus']
+
+                    # Creamos el formato de dinero (USD $ #,##0.00)
+                    formato_moneda = workbook.add_format({
+                        'num_format': '$#,##0.00',
+                        'align': 'center'
+                    })
+
+                    # Formato para el encabezado (opcional, para que combine con tus azules de la imagen 3)
+                    formato_header = workbook.add_format({
+                        'bold': True,
+                        'bg_color': '#1B263B', # El azul de tu sidebar
+                        'font_color': 'white',
+                        'border': 1
+                    })
+
+                    # Aplicamos el formato de moneda a la columna 'Total'
+                    # Suponiendo que 'Total' es la columna D (índice 2)
+                    # Ajustamos el ancho a 15 para que no salgan los "###"
+                    worksheet.set_column('D:D', 15, formato_moneda)
+                    
+                    # (Opcional) Aplicamos formato al encabezado para que se vea pro
+                    for col_num, value in enumerate(df.columns.values):
+                        worksheet.write(0, col_num, value, formato_header)
+
+                messagebox.showinfo("Éxito", "Excel generado con formato profesional")
+        except Exception as e: 
+            messagebox.showerror("Error", f"No se pudo generar el Excel: {e}")
